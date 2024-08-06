@@ -3,23 +3,22 @@
 
 module Lib where
 
-import Data.Aeson (FromJSON)
+import Data.Aeson (FromJSON, ToJSON)
 import Data.Yaml (decodeFileEither)
 import GHC.Generics (Generic)
 import System.Exit (die)
 
 data Configuration = Configuration
-  { domain :: String,
+  { serverPort :: Int,
+    domain :: String,
     key :: String,
     locations :: [Location]
   }
   deriving (Show, Generic, FromJSON)
 
-data Location = Location
-  { latitude :: Double,
-    longitude :: Double
-  }
-  deriving (Show, Generic, FromJSON)
+newtype Location = Location 
+  { location :: String }
+  deriving (Show, Generic, FromJSON, ToJSON)
 
 readConfigFile :: IO Configuration
 readConfigFile = do

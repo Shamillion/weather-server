@@ -71,9 +71,12 @@ executable weather-server
     build-depends:    base ^>=4.17.2.1
                     , yaml
                     , aeson
-                   -- , servant-client
+                    , servant-server
                     , http-conduit
                     , bytestring
+                    , wai
+                    , warp
+                    , text
 
     -- Directories containing source files.
     hs-source-dirs:   app

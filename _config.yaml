@@ -1,12 +1,11 @@
 #Configuration file for the weather-server
-# Rename this file into config.yaml and fill up your values
+#Rename this file into config.yaml and fill up your values
 ---
+serverPort  : 8080
 domain: api.openweathermap.org
-key: ????????????????????????? #key-value
+key: ????????????????????????  #key-value
 locations: 
-- latitude: 0.0
-  longitude: 0.0
-- latitude: 10.0
-  longitude: 10.0
-- latitude: 20.0
-  longitude: -20.0 
+- location: London  
+- location: Vladivostok  
+- location: Vancouver 
+- location: Saint John 

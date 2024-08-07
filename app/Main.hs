@@ -1,60 +1,43 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE KindSignatures #-}
-{-# LANGUAGE OverloadedStrings #-}
+--{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeOperators #-}
 
 module Main where
 
-import qualified Data.ByteString.Lazy.Char8 as LC
+import Data.Aeson (eitherDecode)
+-- import qualified Data.ByteString.Lazy.Char8 as LC
 import Lib
 import Network.HTTP.Simple
-  ( Request,
-    getResponseBody,
+  ( getResponseBody,
     httpLBS,
-    parseRequest_,
   )
---import qualified Network.Wai as W
+-- import qualified Network.Wai as W
 import Network.Wai.Handler.Warp (run)
 import Servant
+
 --import qualified Data.Text as T
 
-type LocationAPI =
-  Capture "" String :> Get '[JSON] String
+type API = Capture "val" String :> Get '[JSON] (Either String LocationData) -- change to Maybe
 
-type API = LocationAPI
+handler :: Configuration -> String -> Handler (Either String LocationData) -- change to Maybe
+handler conf loc =
+  eitherDecode . getResponseBody <$> httpLBS (buildGetRequest conf $ Location loc) -- change to decode
 
 api :: Proxy API
 api = Proxy
 
-server :: Configuration -> Server LocationAPI
-server conf loc = do
-  let loc' = Location loc
-  LC.unpack . getResponseBody <$> httpLBS (buildGetRequest conf loc')
+server :: Configuration -> Server API
+server = handler
 
 app :: Configuration -> Application
 app conf = serve api $ server conf
-
-buildGetRequest :: Configuration -> Location -> Request
-buildGetRequest conf (Location name) =
-  parseRequest_ . mconcat $
-    [ "https://",
-      domain conf,
-      "/data/2.5/weather?q=",
-      name,
-      "&appid=",
-      key conf
-    ]
-
-responseLs :: Configuration -> IO [LC.ByteString]
-responseLs conf = do
-  let ls = locations conf
-      resp = httpLBS . buildGetRequest conf
-  mapM (fmap getResponseBody . resp) ls
 
 main :: IO ()
 main = do
   conf <- readConfigFile
   let port = serverPort conf
+  putStrLn "Server is started."
   run port $ app conf
 
 -- responseLs conf >>= print

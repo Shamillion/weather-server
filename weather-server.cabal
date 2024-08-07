@@ -77,6 +77,7 @@ executable weather-server
                     , wai
                     , warp
                     , text
+                    , containers
 
     -- Directories containing source files.
     hs-source-dirs:   app

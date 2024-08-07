@@ -5,11 +5,28 @@
 
 module Lib where
 
-import Data.Aeson (FromJSON (parseJSON), ToJSON (toJSON), Value (Object), eitherDecode, encode, object, (.:), (.:?), (.=))
+import Data.Aeson
+  ( FromJSON (parseJSON),
+    ToJSON (toJSON),
+    Value (Object),
+    eitherDecode,
+    encode,
+    object,
+    (.:),
+    (.:?),
+    (.=),
+  )
 import qualified Data.ByteString.Lazy.Char8 as LC
+import qualified Data.Map.Lazy as Map
 import Data.Yaml (decodeFileEither)
 import GHC.Generics (Generic)
-import Network.HTTP.Simple (Request, Response, getResponseBody, httpLBS, parseRequest_)
+import Network.HTTP.Simple
+  ( Request,
+    Response,
+    getResponseBody,
+    httpLBS,
+    parseRequest_,
+  )
 import System.Exit (die)
 
 data Configuration = Configuration
@@ -22,7 +39,37 @@ data Configuration = Configuration
 
 newtype Location = Location
   {location :: String}
-  deriving (Show, Generic, FromJSON, ToJSON)
+  deriving (Eq, Ord, Show, Generic, FromJSON, ToJSON)
+
+data Environment = Environment
+  { locationDataLs :: Map.Map Location [LocationData],
+    connectInfo :: ConnectInfo
+  }
+  deriving (Show)
+
+data ConnectInfo = ConnectInfo
+  { serverPort_ :: Int,
+    domain_ :: String,
+    key_ :: String
+  }
+  deriving (Show)
+
+mkEnvironment :: Configuration -> Environment
+mkEnvironment conf = do
+  let locationLs = locations conf
+      ls = Map.fromList . zip locationLs $ replicate (length locationLs) []
+  Environment
+    { locationDataLs = ls,
+      connectInfo = mkConnectInfo conf
+    }
+
+mkConnectInfo :: Configuration -> ConnectInfo
+mkConnectInfo conf =
+  ConnectInfo
+    { serverPort_ = serverPort conf,
+      domain_ = domain conf,
+      key_ = key conf
+    }
 
 readConfigFile :: IO Configuration
 readConfigFile = do

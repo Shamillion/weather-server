@@ -5,14 +5,18 @@
 
 module Main where
 
-import Data.Aeson (eitherDecode)
 -- import qualified Data.ByteString.Lazy.Char8 as LC
+
+-- import qualified Network.Wai as W
+
+import Config
+import Data.Aeson (eitherDecode)
 import Lib
+import LocationData
 import Network.HTTP.Simple
   ( getResponseBody,
     httpLBS,
   )
--- import qualified Network.Wai as W
 import Network.Wai.Handler.Warp (run)
 import Servant
 
@@ -20,25 +24,26 @@ import Servant
 
 type API = Capture "val" String :> Get '[JSON] (Either String LocationData) -- change to Maybe
 
-handler :: Configuration -> String -> Handler (Either String LocationData) -- change to Maybe
-handler conf loc =
-  eitherDecode . getResponseBody <$> httpLBS (buildGetRequest conf $ Location loc) -- change to decode
+handler :: ConnectInfo -> String -> Handler (Either String LocationData) -- change to Maybe
+handler connInf loc =
+  eitherDecode . getResponseBody <$> httpLBS (buildGetRequest connInf $ Location loc) -- change to decode
 
 api :: Proxy API
 api = Proxy
 
-server :: Configuration -> Server API
+server :: ConnectInfo -> Server API
 server = handler
 
-app :: Configuration -> Application
-app conf = serve api $ server conf
+app :: ConnectInfo -> Application
+app = serve api . server 
 
 main :: IO ()
 main = do
   conf <- readConfigFile
   let port = serverPort conf
+      connInf = mkConnectInfo conf
   putStrLn "Server is started."
-  run port $ app conf
+  run port $ app connInf
 
 -- responseLs conf >>= print
 -- print conf

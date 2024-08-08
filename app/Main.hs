@@ -6,11 +6,10 @@
 module Main where
 
 -- import qualified Data.ByteString.Lazy.Char8 as LC
-
 -- import qualified Network.Wai as W
-
 import Config
 import Data.Aeson (eitherDecode)
+import Data.IORef (newIORef)
 import Lib
 import LocationData
 import Network.HTTP.Simple
@@ -35,15 +34,17 @@ server :: ConnectInfo -> Server API
 server = handler
 
 app :: ConnectInfo -> Application
-app = serve api . server 
+app = serve api . server
 
 main :: IO ()
 main = do
   conf <- readConfigFile
+  ioRef <- newIORef $ mkEnvironment conf
+  _ <- cachingLoop ioRef
   let port = serverPort conf
       connInf = mkConnectInfo conf
   putStrLn "Server is started."
   run port $ app connInf
 
 -- responseLs conf >>= print
--- print conf
+-- print . locationDataLs . mkEnvironment $ conf

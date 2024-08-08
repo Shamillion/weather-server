@@ -4,7 +4,7 @@
 
 module Config where
 
-import Data.Aeson ( FromJSON, ToJSON, )
+import Data.Aeson (FromJSON, ToJSON)
 import Data.Yaml (decodeFileEither)
 import GHC.Generics (Generic)
 import System.Exit (die)
@@ -20,7 +20,7 @@ data Configuration = Configuration
 
 newtype Location = Location
   {location :: String}
-  deriving (Eq, Ord, Show, Generic, FromJSON, ToJSON)
+  deriving (Eq, Show, Generic, FromJSON, ToJSON)
 
 readConfigFile :: IO Configuration
 readConfigFile = do

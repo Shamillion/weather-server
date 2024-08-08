@@ -1,7 +1,7 @@
+{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE DeriveAnyClass #-}
 
 module LocationData where
 
@@ -15,8 +15,6 @@ import Data.Aeson
     (.=),
   )
 import GHC.Generics (Generic)
-
-
 
 data LocationData = LocationData
   { coord :: Coord,

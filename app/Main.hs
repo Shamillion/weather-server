@@ -8,8 +8,9 @@ module Main where
 -- import qualified Data.ByteString.Lazy.Char8 as LC
 -- import qualified Network.Wai as W
 import Config
+import Control.Concurrent (forkIO, newMVar)
+import Control.Monad.IO.Class (liftIO)
 import Data.Aeson (eitherDecode)
-import Data.IORef (newIORef)
 import Lib
 import LocationData
 import Network.HTTP.Simple
@@ -21,10 +22,14 @@ import Servant
 
 --import qualified Data.Text as T
 
-type API = Capture "val" String :> Get '[JSON] (Either String LocationData) -- change to Maybe
+type API =
+  Capture "location" String
+    :> QueryParam "timestamp" Int
+    :> Get '[JSON] (Either String LocationData) -- change to Maybe
 
-handler :: ConnectInfo -> String -> Handler (Either String LocationData) -- change to Maybe
-handler connInf loc =
+handler :: ConnectInfo -> String -> Maybe Int -> Handler (Either String LocationData) -- change to Maybe
+handler connInf loc maybeInt = do
+  _ <- liftIO $ print (loc, maybeInt)
   eitherDecode . getResponseBody <$> httpLBS (buildGetRequest connInf $ Location loc) -- change to decode
 
 api :: Proxy API
@@ -39,8 +44,10 @@ app = serve api . server
 main :: IO ()
 main = do
   conf <- readConfigFile
-  ioRef <- newIORef $ mkEnvironment conf
-  _ <- cachingLoop ioRef
+  mVar <- newMVar $ mkEnvironment conf
+  _ <- forkIO $ do
+    putStrLn "Caching is started."
+    cachingLoop mVar
   let port = serverPort conf
       connInf = mkConnectInfo conf
   putStrLn "Server is started."
@@ -48,3 +55,5 @@ main = do
 
 -- responseLs conf >>= print
 -- print . locationDataLs . mkEnvironment $ conf
+-- print conf
+-- print $ mkConnectInfo conf

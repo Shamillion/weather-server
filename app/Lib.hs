@@ -4,15 +4,16 @@
 module Lib where
 
 import Config
-import Control.Concurrent (threadDelay)
+import Control.Concurrent (MVar, putMVar, takeMVar, threadDelay)
 import Data.Aeson
   ( decode,
     eitherDecode,
     encode,
   )
 import qualified Data.ByteString.Lazy.Char8 as LC
-import Data.IORef
 --import qualified Data.Map.Lazy as Map
+
+import Data.Maybe (fromMaybe)
 import LocationData
 import Network.HTTP.Simple
   ( Request,
@@ -48,21 +49,21 @@ mkEnvironment conf = do
 mkConnectInfo :: Configuration -> ConnectInfo
 mkConnectInfo conf =
   ConnectInfo
-    { domain_ = domain conf,
+    { domain_ = fromMaybe "api.openweathermap.org" $ domain conf,
       key_ = key conf
     }
 
-cachingLoop :: IORef Environment -> IO ()
-cachingLoop ioRef = do
-  env <- readIORef ioRef
+cachingLoop :: MVar Environment -> IO ()
+cachingLoop mVar = do
+  env <- takeMVar mVar
   let ls = locationDataLs env
       connInf = connectInfo env
       pause = delay env
-  print ls --                                       <-- for test, delete
+  print . length . snd . head $ ls --                                       <-- for test, delete
   newLs <- mapM (updateLocationDataLs connInf) ls
-  writeIORef ioRef $ Environment newLs pause connInf
-  threadDelay $ pause * 10 ^ 6
-  cachingLoop ioRef
+  putMVar mVar $ Environment newLs pause connInf
+  threadDelay $ pause * 10 ^ (6 :: Int)
+  cachingLoop mVar
 
 buildGetRequest :: ConnectInfo -> Location -> Request
 buildGetRequest connInf (Location str) =

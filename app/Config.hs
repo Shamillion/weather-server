@@ -11,7 +11,7 @@ import System.Exit (die)
 
 data Configuration = Configuration
   { serverPort :: Int,
-    domain :: String,
+    domain :: Maybe String,
     key :: String,
     timeDelay :: Int,
     locations :: [Location]

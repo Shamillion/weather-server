@@ -14,6 +14,7 @@ data Configuration = Configuration
     domain :: Maybe String,
     key :: String,
     timeDelay :: Int,
+    marginErrorTime :: Int,
     locations :: [Location]
   }
   deriving (Show, Generic, FromJSON)

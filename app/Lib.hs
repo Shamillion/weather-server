@@ -24,11 +24,14 @@ import Network.HTTP.Simple
   )
 
 data Environment = Environment
-  { locationDataLs :: [(Location, [LocationData])],
+  { locationsDataLs :: [LocationDataTuple],
     delay :: Int,
+    marginTime :: Int,
     connectInfo :: ConnectInfo
   }
   deriving (Show)
+
+type LocationDataTuple = (Location, [LocationData])
 
 data ConnectInfo = ConnectInfo
   { domain_ :: String,
@@ -41,8 +44,9 @@ mkEnvironment conf = do
   let locationLs = locations conf
       ls = map (,[]) locationLs
   Environment
-    { locationDataLs = ls,
+    { locationsDataLs = ls,
       delay = timeDelay conf,
+      marginTime = marginErrorTime conf,
       connectInfo = mkConnectInfo conf
     }
 
@@ -56,12 +60,12 @@ mkConnectInfo conf =
 cachingLoop :: MVar Environment -> IO ()
 cachingLoop mVar = do
   env <- takeMVar mVar
-  let ls = locationDataLs env
+  let ls = locationsDataLs env
       connInf = connectInfo env
       pause = delay env
-  print . length . snd . head $ ls --                                       <-- for test, delete
   newLs <- mapM (updateLocationDataLs connInf) ls
-  putMVar mVar $ Environment newLs pause connInf
+  putMVar mVar $ env {locationsDataLs = newLs}
+  print . head . snd . head $ newLs --                                       <-- for test, delete
   threadDelay $ pause * 10 ^ (6 :: Int)
   cachingLoop mVar
 
@@ -81,7 +85,7 @@ getLocationData connInf loc = do
   let req = buildGetRequest connInf loc
   decode . getResponseBody <$> httpLBS req
 
-updateLocationDataLs :: ConnectInfo -> (Location, [LocationData]) -> IO (Location, [LocationData])
+updateLocationDataLs :: ConnectInfo -> LocationDataTuple -> IO LocationDataTuple
 updateLocationDataLs connInf (l, ls) = do
   maybeLocationData <- getLocationData connInf l
   let newLs =

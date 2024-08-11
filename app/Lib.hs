@@ -4,7 +4,8 @@
 module Lib where
 
 import Config
-import Control.Concurrent (MVar, putMVar, takeMVar, threadDelay)
+import Control.Concurrent (MVar, putMVar, takeMVar)
+import qualified Control.Concurrent.Thread.Delay as D
 import Data.Aeson
   ( decode,
     eitherDecode,
@@ -13,7 +14,7 @@ import Data.Aeson
 import qualified Data.ByteString.Lazy.Char8 as LC
 --import qualified Data.Map.Lazy as Map
 
-import Data.Maybe (fromMaybe)
+import Data.Maybe (fromMaybe, isJust, listToMaybe, isNothing)
 import LocationData
 import Network.HTTP.Simple
   ( Request,
@@ -22,10 +23,11 @@ import Network.HTTP.Simple
     httpLBS,
     parseRequest_,
   )
+import Data.Foldable (find)
 
 data Environment = Environment
   { locationsDataLs :: [LocationDataTuple],
-    delay :: Int,
+    delay :: Integer,
     marginTime :: Int,
     connectInfo :: ConnectInfo
   }
@@ -66,11 +68,11 @@ cachingLoop mVar = do
   newLs <- mapM (updateLocationDataLs connInf) ls
   putMVar mVar $ env {locationsDataLs = newLs}
   print . head . snd . head $ newLs --                                       <-- for test, delete
-  threadDelay $ pause * 10 ^ (6 :: Int)
+  D.delay $ pause * 10 ^ (6 :: Integer)
   cachingLoop mVar
 
-buildGetRequest :: ConnectInfo -> Location -> Request
-buildGetRequest connInf (Location str) =
+mkGetRequest :: ConnectInfo -> Location -> Request
+mkGetRequest connInf (Location str) =
   parseRequest_ . mconcat $
     [ "https://",
       domain_ connInf,
@@ -82,7 +84,7 @@ buildGetRequest connInf (Location str) =
 
 getLocationData :: ConnectInfo -> Location -> IO (Maybe LocationData)
 getLocationData connInf loc = do
-  let req = buildGetRequest connInf loc
+  let req = mkGetRequest connInf loc
   decode . getResponseBody <$> httpLBS req
 
 updateLocationDataLs :: ConnectInfo -> LocationDataTuple -> IO LocationDataTuple
@@ -98,12 +100,47 @@ responseLs :: Configuration -> IO [LC.ByteString]
 responseLs conf = do
   let ls = locations conf
       connInf = mkConnectInfo conf
-      resp = httpLBS . buildGetRequest connInf
+      resp = httpLBS . mkGetRequest connInf
   mapM (fmap getResponseBody . resp) ls
+
+type TimeStamp = Int
+type MarginErorTime = Int
+
+mkMarginErrorTimeLs :: TimeStamp -> MarginErorTime -> [Int]
+mkMarginErrorTimeLs timeStamp marginErrTime = do
+  let tupleLs =
+        zip [timeStamp + 1 .. timeStamp + marginErrTime] $
+          reverse [timeStamp - marginErrTime .. timeStamp - 1]
+  timeStamp : foldr (\(x, y) ls -> x : y : ls) [] tupleLs
+
+nearestLocationData :: Maybe [LocationData] -> [TimeStamp] -> Maybe LocationData
+nearestLocationData maybeLs timeLs
+  | isNothing maybeLs || null timeLs || fmap null maybeLs == Just True = Nothing
+  | otherwise = do
+      let maybeLocationData = searchFitLocationData maybeLs timeLs
+      if isJust maybeLocationData
+        then maybeLocationData
+        else do
+          maxTime <- fmap dt $ maybeLs >>= listToMaybe
+          minTime <- fmap dt $ maybeLs >>= listToMaybe . reverse
+          undefined
+
+searchFitLocationData ::  Maybe [LocationData] -> [TimeStamp] -> Maybe LocationData
+searchFitLocationData Nothing _ = Nothing 
+searchFitLocationData _ [] = Nothing 
+searchFitLocationData (Just ls)  (x:xs) = do
+  let maybeData = find ((x ==) . dt) ls
+  if isJust maybeData
+    then maybeData
+    else searchFitLocationData (Just ls) xs
+
+  
+  
+
 
 checkingWorkJSON :: ConnectInfo -> IO ()
 checkingWorkJSON connInf = do
-  let x = httpLBS . buildGetRequest connInf $ Location "Vancouver" :: IO (Response LC.ByteString)
+  let x = httpLBS . mkGetRequest connInf $ Location "Vancouver" :: IO (Response LC.ByteString)
   resp <- fmap getResponseBody x
   case eitherDecode resp :: Either String LocationData of
     Right obj -> do

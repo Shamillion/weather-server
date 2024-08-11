@@ -13,7 +13,7 @@ data Configuration = Configuration
   { serverPort :: Int,
     domain :: Maybe String,
     key :: String,
-    timeDelay :: Int,
+    timeDelay :: Integer,
     marginErrorTime :: Int,
     locations :: [Location]
   }

@@ -35,8 +35,7 @@ handler mVar loc maybeTime = do
       connInf = connectInfo env
       getEitherLocationData =
         eitherDecode . getResponseBody
-          <$> httpLBS (buildGetRequest connInf locationName) -- change to decode
-  _ <- liftIO $ print (loc, maybeTime)
+          <$> httpLBS (mkGetRequest connInf locationName) -- change to decode 
   case maybeTime of
     Just time -> do
       let locDtLs = locationsDataLs env -- if need
@@ -45,6 +44,12 @@ handler mVar loc maybeTime = do
           lastUpdateTime = maybe 0 dt maybeLastLocationData
       if isJust maybeLastLocationData && time <= lastUpdateTime
         then do
+          _ <- liftIO $ print "Done! ___________________________________________________"
+          let marginErrTime = marginTime env
+              timeLs =  mkMarginErrorTimeLs time marginErrTime
+          _ <- liftIO $ print timeLs  
+
+
           pure . maybeToEither $
             maybeLocationDataLs >>= find ((time ==) . dt)
         else getEitherLocationData
@@ -53,7 +58,8 @@ handler mVar loc maybeTime = do
     maybeToEither maybeVal =
       case maybeVal of
         Just obj -> Right obj
-        _ -> Left "Error in handler"
+        _ -> Left "There is no data for this location for this time interval"
+
 
 api :: Proxy API
 api = Proxy
@@ -63,3 +69,5 @@ server = handler
 
 app :: MVar Environment -> Application
 app = serve api . server
+
+ 

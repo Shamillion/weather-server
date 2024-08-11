@@ -77,10 +77,8 @@ executable weather-server
                     , servant-server
                     , http-conduit
                     , bytestring
-                    , wai
                     , warp
-                    , text
-                    , containers
+                    , unbounded-delays
 
     -- Directories containing source files.
     hs-source-dirs:   app

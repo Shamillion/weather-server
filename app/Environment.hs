@@ -4,7 +4,7 @@ module Environment where
 
 import Config
   ( Configuration (domain, key, locations, marginErrorTime, timeDelay),
-    Location,
+    Location, defaultDomain,
   )
 import Data.Maybe (fromMaybe)
 import LocationData (LocationData)
@@ -39,6 +39,6 @@ mkEnvironment conf = do
 mkConnectInfo :: Configuration -> ConnectInfo
 mkConnectInfo conf =
   ConnectInfo
-    { domain_ = fromMaybe "api.openweathermap.org" $ domain conf,
+    { domain_ = fromMaybe defaultDomain $ domain conf,
       key_ = key conf
     }

@@ -11,3 +11,8 @@ locations:
 - location: Vladivostok  
 - location: Vancouver 
 - location: Saint John 
+# - location: any location 
+# - location: any location
+# - location: any location
+#   . . .     
+# - location: any location

@@ -23,6 +23,9 @@ newtype Location = Location
   {location :: String}
   deriving (Eq, Show, Generic, FromJSON, ToJSON)
 
+defaultDomain :: String
+defaultDomain = "api.openweathermap.org"  
+
 readConfigFile :: IO Configuration
 readConfigFile = do
   content <- decodeFileEither "config.yaml"

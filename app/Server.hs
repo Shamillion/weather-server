@@ -5,53 +5,65 @@
 
 module Server where
 
--- import qualified Data.ByteString.Lazy.Char8 as LC
--- import qualified Network.Wai as W
-import Config
+import Config (Location (Location))
 import Control.Concurrent (MVar, readMVar)
 import Control.Monad.IO.Class (liftIO)
 import Data.Aeson (eitherDecode)
-import Data.List (find)
 import Data.Maybe (isJust, listToMaybe)
+import Environment
+  ( Environment (connectInfo, locationsDataLs, marginTime),
+  )
 import Lib
-import LocationData
+  ( TimeStamp,
+    mkGetRequest,
+    mkMarginErrorTimeLs,
+    nearestLocationData,
+  )
+import LocationData (LocationData (dt))
 import Network.HTTP.Simple
   ( getResponseBody,
     httpLBS,
   )
 import Servant
-
---import qualified Data.Text as T
+  ( Application,
+    Capture,
+    Get,
+    Handler,
+    JSON,
+    Proxy (..),
+    QueryParam,
+    Server,
+    serve,
+    type (:>),
+  )
 
 type API =
   Capture "location" String
     :> QueryParam "timestamp" Int
     :> Get '[JSON] (Either String LocationData) -- change to Maybe
 
-handler :: MVar Environment -> String -> Maybe Int -> Handler (Either String LocationData) -- change to Maybe
-handler mVar loc maybeTime = do
+handler :: MVar Environment -> String -> Maybe TimeStamp -> Handler (Either String LocationData) -- change to Maybe
+handler mVar loc maybeTimeStamp = do
   env <- liftIO $ readMVar mVar
   let locationName = Location loc
       connInf = connectInfo env
       getEitherLocationData =
         eitherDecode . getResponseBody
-          <$> httpLBS (mkGetRequest connInf locationName) -- change to decode 
-  case maybeTime of
-    Just time -> do
+          <$> httpLBS (mkGetRequest connInf locationName) -- change to decode
+  case maybeTimeStamp of
+    Just timeStemp -> do
       let locDtLs = locationsDataLs env -- if need
           maybeLocationDataLs = lookup locationName locDtLs
           maybeLastLocationData = maybeLocationDataLs >>= listToMaybe
           lastUpdateTime = maybe 0 dt maybeLastLocationData
-      if isJust maybeLastLocationData && time <= lastUpdateTime
+      if isJust maybeLastLocationData && timeStemp <= lastUpdateTime
         then do
-          _ <- liftIO $ print "Done! ___________________________________________________"
+          _ <- liftIO $ print "Done! ___________________________________________________" -- Delete
           let marginErrTime = marginTime env
-              timeLs =  mkMarginErrorTimeLs time marginErrTime
-          _ <- liftIO $ print timeLs  
-
-
+              timeStempLs = mkMarginErrorTimeLs timeStemp marginErrTime
+          _ <- liftIO $ print timeStempLs --                                                 Delete
           pure . maybeToEither $
-            maybeLocationDataLs >>= find ((time ==) . dt)
+            nearestLocationData maybeLocationDataLs timeStempLs
         else getEitherLocationData
     Nothing -> getEitherLocationData
   where
@@ -59,7 +71,6 @@ handler mVar loc maybeTime = do
       case maybeVal of
         Just obj -> Right obj
         _ -> Left "There is no data for this location for this time interval"
-
 
 api :: Proxy API
 api = Proxy
@@ -69,5 +80,3 @@ server = handler
 
 app :: MVar Environment -> Application
 app = serve api . server
-
- 

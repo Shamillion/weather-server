@@ -5,7 +5,8 @@ module Main where
 
 import Config (Configuration (serverPort), readConfigFile)
 import Control.Concurrent (forkIO, newMVar)
-import Lib (cachingLoop, mkEnvironment)
+import Environment (mkEnvironment)
+import Lib (cachingLoop)
 import Network.Wai.Handler.Warp (run)
 import Server (app)
 

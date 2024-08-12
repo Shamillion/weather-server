@@ -1,25 +1,35 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE KindSignatures #-}
---{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeOperators #-}
 
 module Server where
 
 import Config (Location (Location))
 import Control.Concurrent (MVar, readMVar)
+import Control.Monad (filterM)
 import Control.Monad.IO.Class (liftIO)
-import Data.Aeson (eitherDecode)
+import Data.Aeson (decode, eitherDecode)
 import Data.Maybe (isJust, listToMaybe)
 import Environment
-  ( Environment (connectInfo, locationsDataLs, marginTime),
+  ( Environment
+      ( connectInfo,
+        locationsDataLs,
+        marginErrCoordinate,
+        marginErrTime
+      ),
   )
 import Lib
   ( TimeStamp,
     mkGetRequest,
+    mkGetRequestCoord,
     mkMarginErrorTimeLs,
     nearestLocationData,
+    searchSuitableLocationDataByCoord,
   )
-import LocationData (LocationData (dt))
+import LocationData
+  ( LocationData (coord, dt),
+    RequestedLocation (coordRL),
+  )
 import Network.HTTP.Simple
   ( getResponseBody,
     httpLBS,
@@ -52,25 +62,44 @@ handler mVar loc maybeTimeStamp = do
           <$> httpLBS (mkGetRequest connInf locationName) -- change to decode
   case maybeTimeStamp of
     Just timeStemp -> do
-      let locDtLs = locationsDataLs env -- if need
-          maybeLocationDataLs = lookup locationName locDtLs
+      let locDtTupleLs = locationsDataLs env -- if need
+          maybeLocationDataLs = lookup locationName locDtTupleLs
           maybeLastLocationData = maybeLocationDataLs >>= listToMaybe
-          lastUpdateTime = maybe 0 dt maybeLastLocationData
-      if isJust maybeLastLocationData && timeStemp <= lastUpdateTime
-        then do
-          _ <- liftIO $ print "Done! ___________________________________________________" -- Delete
-          let marginErrTime = marginTime env
-              timeStempLs = mkMarginErrorTimeLs timeStemp marginErrTime
-          _ <- liftIO $ print timeStempLs --                                                 Delete
-          pure . maybeToEither $
-            nearestLocationData maybeLocationDataLs timeStempLs
-        else getEitherLocationData
+          lastUpdateTime = maybe 0 dt $ listToMaybe locDtTupleLs >>= listToMaybe . snd
+          lastUpdateTimeLocationData = maybe 0 dt maybeLastLocationData
+          mrgnErrTime = marginErrTime env
+          marginErrTimeExtended = max mrgnErrTime 500
+          timeStempLs = mkMarginErrorTimeLs timeStemp marginErrTimeExtended
+      if isJust maybeLastLocationData && timeStemp <= lastUpdateTimeLocationData
+        then pure . maybeToEither $ nearestLocationData maybeLocationDataLs timeStempLs
+        else
+          if timeStemp <= lastUpdateTime
+            then do
+              resp <- httpLBS (mkGetRequestCoord connInf locationName)
+              let maybeLocationData = decode $ getResponseBody resp :: Maybe [RequestedLocation]
+                  maybeCoordRequestedLocation = coordRL <$> (listToMaybe =<< maybeLocationData)
+                  mrgnErrCoordinate = marginErrCoordinate env
+                  locationDataLs = map snd locDtTupleLs
+                  coordCompare = searchSuitableLocationDataByCoord mrgnErrCoordinate
+                  fitLocationDataLs = do
+                    coordRequestedLocation <- maybeCoordRequestedLocation
+                    listToMaybe
+                      =<< filterM
+                        (fmap (coordCompare coordRequestedLocation . coord) . listToMaybe)
+                        locationDataLs
+                  maybeResLocationData = nearestLocationData fitLocationDataLs timeStempLs
+              choiceObj maybeResLocationData getEitherLocationData
+            else getEitherLocationData
     Nothing -> getEitherLocationData
   where
     maybeToEither maybeVal =
       case maybeVal of
         Just obj -> Right obj
         _ -> Left "There is no data for this location for this time interval"
+    choiceObj maybeObj handlerObj =
+      case maybeObj of
+        Just _ -> pure $ maybeToEither maybeObj
+        _ -> handlerObj
 
 api :: Proxy API
 api = Proxy

@@ -28,7 +28,17 @@ To deploy the project, you need to perform the following steps:
 curl -X GET 'http://localhost:8080/London'
 ```
 ```
+curl -X GET 'http://localhost:8080/London,GB'
+```
+```
+curl -X GET 'http://localhost:8080/London,uk'
+```
+
+```
 curl -X GET 'http://localhost:8080/Vladivostok'
+```
+```
+curl -X GET 'http://localhost:8080/Vladivostok,RU'
 ```
 
 ### Timestamp requests
@@ -36,5 +46,11 @@ curl -X GET 'http://localhost:8080/Vladivostok'
 curl -X GET 'http://localhost:8080/London?timestamp=1723385867'
 ```
 ```
+curl -X GET 'http://localhost:8080/London,GB?timestamp=1723385867'
+```
+```
 curl -X GET 'http://localhost:8080/Vladivostok?timestamp=1723373592'
+```
+```
+curl -X GET 'http://localhost:8080/Vladivostok,ru?timestamp=1723373592'
 ```

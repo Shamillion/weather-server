@@ -3,9 +3,10 @@
 ---
 serverPort  : 8080
 domain: api.openweathermap.org
-key: ????????????????????????  #key-value
+key: ????????????????????????           # key-value
 timeDelay: 5                           # the period of automatic updates, seconds
-marginErrorTime: 10                    # margin of error for time, seconds
+marginErrorTime: 10                   # margin of error for time, seconds
+marginErrorCoordinate: 1             # margin error of the coordinate
 locations: 
 - location: London  
 - location: Vladivostok  

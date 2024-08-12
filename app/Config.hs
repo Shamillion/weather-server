@@ -15,6 +15,7 @@ data Configuration = Configuration
     key :: String,
     timeDelay :: Integer,
     marginErrorTime :: Int,
+    marginErrorCoordinate :: Double,
     locations :: [Location]
   }
   deriving (Show, Generic, FromJSON)
@@ -24,7 +25,7 @@ newtype Location = Location
   deriving (Eq, Show, Generic, FromJSON, ToJSON)
 
 defaultDomain :: String
-defaultDomain = "api.openweathermap.org"  
+defaultDomain = "api.openweathermap.org"
 
 readConfigFile :: IO Configuration
 readConfigFile = do

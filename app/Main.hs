@@ -20,8 +20,3 @@ main = do
   let port = serverPort conf
   putStrLn "Server is started."
   run port $ app mVar
-
--- responseLs conf >>= print
--- print . locationDataLs . mkEnvironment $ conf
--- print conf
--- print $ mkConnectInfo conf

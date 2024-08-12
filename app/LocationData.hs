@@ -38,7 +38,7 @@ data Coord = Coord
   { lon :: Double,
     lat :: Double
   }
-  deriving (Show, Generic, FromJSON, ToJSON)
+  deriving (Eq, Show, Generic, FromJSON, ToJSON)
 
 data Weather = Weather
   { idWeather :: Int, -- <--
@@ -128,3 +128,22 @@ instance ToJSON Sys where
         "sunrise" .= sunrise,
         "sunset" .= sunset
       ]
+
+data RequestedLocation = RequestedLocation
+  { nameRL :: String,
+    coordRL :: Coord,
+    countryRL :: String,
+    stateRL :: String
+  }
+  deriving (Eq, Show, Generic, ToJSON)
+
+instance FromJSON RequestedLocation where
+  parseJSON (Object v) = do
+    nameRL <- v .: "name"
+    lon_ <- v .: "lon"
+    lat_ <- v .: "lat"
+    let coordRL = Coord {lon = lon_, lat = lat_}
+    countryRL <- v .: "country"
+    stateRL <- v .: "state"
+    pure $ RequestedLocation nameRL coordRL countryRL stateRL
+  parseJSON _ = mempty

@@ -2,7 +2,7 @@
 
 module Lib where
 
-import Config
+import Config (Configuration (locations), Location (Location))
 import Control.Applicative (Applicative (liftA2))
 import Control.Concurrent (MVar, putMVar, takeMVar)
 import qualified Control.Concurrent.Thread.Delay as D
@@ -20,7 +20,7 @@ import Environment
     LocationDataTuple,
     mkConnectInfo,
   )
-import LocationData (LocationData (dt))
+import LocationData (Coord (..), LocationData (dt), RequestedLocation)
 import Network.HTTP.Simple
   ( Request,
     Response,
@@ -37,7 +37,6 @@ cachingLoop mVar = do
       pause = delay env
   newLs <- mapM (updateLocationDataLs connInf) ls
   putMVar mVar $ env {locationsDataLs = newLs}
-  print . dt . head . snd . head $ newLs --                                       <-- for test, delete
   D.delay $ pause * 10 ^ (6 :: Integer)
   cachingLoop mVar
 
@@ -47,6 +46,17 @@ mkGetRequest connInf (Location str) =
     [ "https://",
       domain_ connInf,
       "/data/2.5/weather?q=",
+      str,
+      "&appid=",
+      key_ connInf
+    ]
+
+mkGetRequestCoord :: ConnectInfo -> Location -> Request
+mkGetRequestCoord connInf (Location str) =
+  parseRequest_ . mconcat $
+    [ "https://",
+      domain_ connInf,
+      "/geo/1.0/direct?q=",
       str,
       "&appid=",
       key_ connInf
@@ -88,7 +98,7 @@ nearestLocationData :: Maybe [LocationData] -> [TimeStamp] -> Maybe LocationData
 nearestLocationData maybeLs timeLs
   | isNothing maybeLs || null timeLs || fmap null maybeLs == Just True = Nothing
   | otherwise = do
-    let maybeLocationData = searchFitLocationData maybeLs timeLs
+    let maybeLocationData = searchFitLocationDataByTime maybeLs timeLs
     if isJust maybeLocationData
       then maybeLocationData
       else do
@@ -103,20 +113,34 @@ nearestLocationData maybeLs timeLs
           Just True -> firstLocationData
           _ -> lastLocationData
 
-searchFitLocationData :: Maybe [LocationData] -> [TimeStamp] -> Maybe LocationData
-searchFitLocationData Nothing _ = Nothing
-searchFitLocationData _ [] = Nothing
-searchFitLocationData (Just ls) (x : xs) = do
+searchFitLocationDataByTime :: Maybe [LocationData] -> [TimeStamp] -> Maybe LocationData
+searchFitLocationDataByTime Nothing _ = Nothing
+searchFitLocationDataByTime _ [] = Nothing
+searchFitLocationDataByTime (Just ls) (x : xs) = do
   let maybeData = find ((x ==) . dt) ls
   if isJust maybeData
     then maybeData
-    else searchFitLocationData (Just ls) xs
+    else searchFitLocationDataByTime (Just ls) xs
+
+searchSuitableLocationDataByCoord :: Double -> Coord -> Coord -> Bool
+searchSuitableLocationDataByCoord mrgnErrCoord coordReqLoc coordLd = do
+  let maxLat = lat coordReqLoc + mrgnErrCoord
+      minLat = lat coordReqLoc - mrgnErrCoord
+      maxLon = lon coordReqLoc + mrgnErrCoord
+      minLon = lon coordReqLoc - mrgnErrCoord
+      latLocData = lat coordLd
+      lonLocData = lon coordLd
+  latLocData >= minLat && latLocData <= maxLat
+    && lonLocData >= minLon
+    && lonLocData <= maxLon
 
 checkingWorkJSON :: ConnectInfo -> IO ()
 checkingWorkJSON connInf = do
-  let x = httpLBS . mkGetRequest connInf $ Location "Vancouver" :: IO (Response LC.ByteString)
+  let x = httpLBS . mkGetRequestCoord connInf $ Location "Vancouver" :: IO (Response LC.ByteString)
   resp <- fmap getResponseBody x
-  case eitherDecode resp :: Either String LocationData of
+  print resp
+  --case eitherDecode resp :: Either String LocationData of
+  case eitherDecode resp :: Either String [RequestedLocation] of
     Right obj -> do
       print obj
       putStrLn $ replicate 50 'X'

@@ -3,8 +3,9 @@
 module Environment where
 
 import Config
-  ( Configuration (domain, key, locations, marginErrorTime, timeDelay),
-    Location, defaultDomain,
+  ( Configuration (domain, key, locations, marginErrorCoordinate, marginErrorTime, timeDelay),
+    Location,
+    defaultDomain,
   )
 import Data.Maybe (fromMaybe)
 import LocationData (LocationData)
@@ -12,7 +13,8 @@ import LocationData (LocationData)
 data Environment = Environment
   { locationsDataLs :: [LocationDataTuple],
     delay :: Integer,
-    marginTime :: Int,
+    marginErrTime :: Int,
+    marginErrCoordinate :: Double,
     connectInfo :: ConnectInfo
   }
   deriving (Show)
@@ -32,7 +34,8 @@ mkEnvironment conf = do
   Environment
     { locationsDataLs = ls,
       delay = timeDelay conf,
-      marginTime = marginErrorTime conf,
+      marginErrTime = marginErrorTime conf,
+      marginErrCoordinate = marginErrorCoordinate conf,
       connectInfo = mkConnectInfo conf
     }
 

@@ -4,7 +4,7 @@ module Lib where
 
 import Config (Configuration (locations), Location (Location))
 import Control.Applicative (Applicative (liftA2))
-import Control.Concurrent (MVar, putMVar, takeMVar)
+import Control.Concurrent (MVar, modifyMVar_)
 import qualified Control.Concurrent.Thread.Delay as D
 import Data.Aeson
   ( decode,
@@ -28,15 +28,16 @@ import Network.HTTP.Simple
     httpLBS,
     parseRequest_,
   )
+import Control.Concurrent.MVar (readMVar)
 
 cachingLoop :: MVar Environment -> IO ()
 cachingLoop mVar = do
-  env <- takeMVar mVar
+  env <- readMVar mVar
   let ls = locationsDataLs env
       connInf = connectInfo env
       pause = delay env
   newLs <- mapM (updateLocationDataLs connInf) ls
-  putMVar mVar $ env {locationsDataLs = newLs}
+  modifyMVar_ mVar $ \_ -> pure env {locationsDataLs = newLs}
   D.delay $ pause * 10 ^ (6 :: Integer)
   cachingLoop mVar
 
